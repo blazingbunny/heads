@@ -48,7 +48,7 @@ $(MEMORY_SIZE_FILE):
 # connected to a framebuffer dialog or the recovery shell.
 QEMU_MONITOR_SOCKET?=
 ifneq "$(QEMU_MONITOR_SOCKET)" ""
-QEMU_MONITOR_OPT := -monitor unix=$(QEMU_MONITOR_SOCKET),server=on,wait=off
+QEMU_MONITOR_OPT := -monitor unix:$(QEMU_MONITOR_SOCKET),server=on,wait=off
 else
 QEMU_MONITOR_OPT :=
 endif
