@@ -86,10 +86,12 @@ whiptail_warning() {
 	TRACE_FUNC
 	_whiptail_preprocess_args "$@"
 	if [ -x /bin/fbwhiptail ]; then
-		DEBUG "whiptail_warning: whiptail $BG_COLOR_WARNING $*"
+		# Dialog bodies can contain TOTP codes, PINs, or passphrases.  Do not
+		# serialize the command line into /tmp/debug.log.
+		DEBUG "whiptail_warning: dialog arguments redacted"
 		whiptail $BG_COLOR_WARNING "${_WHIPTAIL_ARGS[@]}"
 	else
-		DEBUG "whiptail_warning: NEWT_COLORS=root=,$TEXT_BG_COLOR_WARNING whiptail $*"
+		DEBUG "whiptail_warning: dialog arguments redacted (newt)"
 		env NEWT_COLORS="root=,$TEXT_BG_COLOR_WARNING" whiptail "${_WHIPTAIL_ARGS[@]}"
 	fi
 }
@@ -99,10 +101,10 @@ whiptail_error() {
 	TRACE_FUNC
 	_whiptail_preprocess_args "$@"
 	if [ -x /bin/fbwhiptail ]; then
-		DEBUG "whiptail_error: whiptail $BG_COLOR_ERROR $*"
+		DEBUG "whiptail_error: dialog arguments redacted"
 		whiptail $BG_COLOR_ERROR "${_WHIPTAIL_ARGS[@]}"
 	else
-		DEBUG "whiptail_error: NEWT_COLORS=root=,$TEXT_BG_COLOR_ERROR whiptail $*"
+		DEBUG "whiptail_error: dialog arguments redacted (newt)"
 		env NEWT_COLORS="root=,$TEXT_BG_COLOR_ERROR" whiptail "${_WHIPTAIL_ARGS[@]}"
 	fi
 }
@@ -112,7 +114,9 @@ whiptail_type() {
 	TRACE_FUNC
 	local TYPE="$1"
 	shift
-	DEBUG "whiptail_type: type=$TYPE args=$*"
+	# Dialog bodies can contain TOTP codes, PINs, or passphrases.  Keep the
+	# log useful for control-flow debugging without exposing their values.
+	DEBUG "whiptail_type: type=$TYPE dialog arguments redacted"
 	case "$TYPE" in
 	error)
 		whiptail_error "$@"
@@ -122,7 +126,7 @@ whiptail_type() {
 		;;
 	normal)
 		_whiptail_preprocess_args "$@"
-		DEBUG "whiptail_type: whiptail $*"
+		DEBUG "whiptail_type: dialog arguments redacted"
 		whiptail "${_WHIPTAIL_ARGS[@]}"
 		;;
 	esac

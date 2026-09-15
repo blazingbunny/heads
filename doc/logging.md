@@ -99,7 +99,10 @@ Show the information that is about to influence a decision and/or the results of
 
 Use `DO_WITH_DEBUG` to capture a particular command execution to the debug log.
 The command and its arguments are captured at DEBUG level (as they usually indicate the decisions
-the command will make), and the command's stdout/stderr are captured at LOG level.
+the command will make), and the command's stdout/stderr are captured at LOG level. GnuPG command
+output is redacted automatically because card diagnostics can contain PIN defaults or other secret
+material. Pass `--redact-output` before another command when its output may contain secrets; the
+command still receives its normal stdout/stderr, but that output is not copied into the debug log.
 
 Use this in situations like:
 

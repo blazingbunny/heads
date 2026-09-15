@@ -23,8 +23,8 @@ if [ "$CONFIG_TPM" = "y" ]; then
 		if [ ! -f "/tmp/secret/primary.handle" ]; then
 			fail_unseal_reset_required "Unable to unseal TOTP secret from TPM; no TPM primary handle. Reset the TPM (Options -> TPM/TOTP/HOTP Options -> Reset the TPM in the GUI)." || exit 1
 		fi
-		# show unseal invocation; there is no secret argument to mask
-		if ! DO_WITH_DEBUG \
+		# Mask the path to the unsealed secret; DO_WITH_DEBUG must not expose it.
+		if ! DO_WITH_DEBUG --mask-position 5 \
 			tpmr.sh unseal 4d47 0,1,2,3,4,7 312 "$TOTP_SECRET"; then
 			# A TPM2 unseal failure with primary handle present is commonly a
 			# policy/PCR mismatch (for example after firmware updates). Keep this
@@ -34,7 +34,7 @@ if [ "$CONFIG_TPM" = "y" ]; then
 	else
 		# TPM1 path: after reset/re-ownership, unseal failures here are best
 		# handled by resealing the secret from the GUI flow.
-		if ! DO_WITH_DEBUG tpmr.sh unseal 4d47 0,1,2,3,4,7 312 "$TOTP_SECRET"; then
+		if ! DO_WITH_DEBUG --mask-position 5 tpmr.sh unseal 4d47 0,1,2,3,4,7 312 "$TOTP_SECRET"; then
 			fail_unseal "Unable to unseal TOTP secret from TPM. Use the GUI menu (Options -> TPM/TOTP/HOTP Options -> Generate new TOTP/HOTP secret) to reseal." || exit 1
 		fi
 	fi

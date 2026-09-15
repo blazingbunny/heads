@@ -1416,6 +1416,10 @@ SINK_LOG() {
 # was empty or nonempty (which is important when use of a password is optional).
 # N=0 is the name of the command to be executed, N=1 is its first parameter,
 # etc.
+# Command output can be excluded from the debug log with --redact-output.  The
+# output is still returned to the caller, but is not copied through SINK_LOG;
+# use this for commands whose normal diagnostics may contain PINs, passphrases,
+# or other secret material.
 #
 # DO_WITH_DEBUG() can be added in most places where a command is executed to
 # add visibility in the debug log.  For example:
@@ -1440,15 +1444,41 @@ SINK_LOG() {
 DO_WITH_DEBUG() {
 	local exit_status=0
 	local cmd_output
+	local redact_output=n
+	local mask_position=
+	if [[ "$1" == "--redact-output" ]]; then
+		redact_output=y
+		shift
+	fi
 	if [[ "$1" == "--mask-position" ]]; then
-		local mask_position="$2"
+		mask_position="$2"
 		shift
 		shift
+	fi
+	# GnuPG diagnostics can include card PIN defaults and other sensitive
+	# material (especially during factory reset).  Redact them by default;
+	# callers still receive the command's output.
+	case "${1##*/}" in
+		gpg | gpg2)
+			redact_output=y
+			;;
+	esac
+	if [[ -n "$mask_position" ]]; then
 		local show_args=("$@")
 		show_args[$mask_position]="$(mask_param "${show_args[$mask_position]}")"
 		DEBUG "${show_args[@]}"
 	else
 		DEBUG "$@"
+	fi
+
+	if [[ "$redact_output" == "y" ]]; then
+		DEBUG "$1: command output redacted"
+		"$@"
+		exit_status=$?
+		if [[ "$exit_status" -ne 0 ]]; then
+			DEBUG "$1: exited with status $exit_status"
+		fi
+		return "$exit_status"
 	fi
 
 	# Execute the command and capture the exit status. Tee stdout/stderr to

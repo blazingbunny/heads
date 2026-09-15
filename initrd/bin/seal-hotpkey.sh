@@ -150,11 +150,11 @@ month_secs="$((30 * 24 * 60 * 60))"
 gpg_user_name="$(gpg --list-keys --with-colons 2>/dev/null | grep -m 1 '^uid:' | cut -d: -f10)"
 admin_pin_status=1
 if [ "$gpg_user_name" != "OEM Key" ] || [ "$((now_date - gpg_key_create_time))" -gt "$month_secs" ]; then
-	DEBUG "Not trying default PIN ($admin_pin): key_age=$(($((now_date - gpg_key_create_time)) / 86400))d, name='$gpg_user_name'"
+	DEBUG "Not trying default PIN (<hidden>): key_age=$(($((now_date - gpg_key_create_time)) / 86400))d, name='$gpg_user_name'"
 elif [ "$admin_pin_retries" -lt 3 ]; then
-	DEBUG "Not trying default PIN ($admin_pin): only $admin_pin_retries attempt(s) left"
+		DEBUG "Not trying default PIN (<hidden>): only $admin_pin_retries attempt(s) left"
 else
-	STATUS "Trying factory default PIN ($admin_pin) to seal HOTP secret on $DONGLE_BRAND"
+	STATUS "Trying factory default PIN (<hidden>) to seal HOTP secret on $DONGLE_BRAND"
 	DEBUG "Attempting default PIN: key_age=$(($((now_date - gpg_key_create_time)) / 86400))d, GPG name='$gpg_user_name'"
 	# NK3 requires physical touch confirmation for the initialize operation
 	if [ "$DONGLE_BRAND" = "Nitrokey 3" ]; then
