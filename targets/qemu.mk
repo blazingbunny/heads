@@ -52,6 +52,14 @@ QEMU_MONITOR_OPT := -monitor unix:$(QEMU_MONITOR_SOCKET),server=on,wait=off
 else
 QEMU_MONITOR_OPT :=
 endif
+# Optional serial socket for non-interactive recovery automation.  This keeps
+# shell input out of docker attach, whose PTY can propagate Ctrl-C to QEMU.
+QEMU_SERIAL_SOCKET?=
+ifneq "$(QEMU_SERIAL_SOCKET)" ""
+QEMU_SERIAL_OPT := -serial unix:$(QEMU_SERIAL_SOCKET),server=on,wait=off
+else
+QEMU_SERIAL_OPT := -serial stdio
+endif
 USB_FD_IMG=$(build)/$(BOARD)/usb_fd.raw
 # Default USB flash drive size (accepts K/M/G suffixes).
 # Raw sparse: only written blocks consume host disk space, so
@@ -121,7 +129,7 @@ run: $(QEMU_BOOT_ROM) $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE
 		-smp 1 \
 		-vga std \
 		-m "$$(cat "$(MEMORY_SIZE_FILE)")" \
-		-serial stdio \
+		$(QEMU_SERIAL_OPT) \
 		--bios "$(QEMU_BOOT_ROM)" \
 		-object rng-random,filename=/dev/urandom,id=rng0 \
 		-device virtio-rng-pci,rng=rng0 \
