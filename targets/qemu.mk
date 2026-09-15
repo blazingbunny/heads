@@ -112,6 +112,9 @@ run: $(QEMU_BOOT_ROM) $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE
 		--ctrl type=unixio,path="$(TPMDIR)/sock" &
 	sleep 0.5
 
+	# The optional monitor is a host-side control channel.  Make only its
+	# socket connectable by the host user; no secrets are created here.
+	umask 000; \
 	-qemu-system-x86_64 -drive file="$(ROOT_DISK_IMG)",if=virtio \
 		--machine q35,accel=kvm:tcg \
 		-rtc base=utc \
