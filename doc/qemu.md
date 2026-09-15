@@ -55,7 +55,13 @@ directory inside the repo as a backing store (see hardlink workflow below).
 2. Build Heads
    * `./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm1-hotp`
 3. Install OS
-   * `./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm1-hotp INSTALL_IMG=<~/heads/path_to_iso.iso> run`
+   * For `INSTALL_IMG`, use a bootable Debian Live/hybrid ISO (for example
+     `debian-live-13.7.0-amd64-xfce.iso`). Heads boots this image through its
+     USB-file/kexec path and the live image can install an OS to the virtual
+     disk. A Debian `netinst` or DVD installer ISO is not suitable for this
+     path: it expects a physical CD/DVD and Heads will return to the ISO
+     selector with a "cannot boot from USB" warning.
+   * `./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm1-hotp INSTALL_IMG=<path_to_debian_live_iso> run`
    * Lightweight desktops (XFCE, LXDE, etc.) are recommended, especially if KVM acceleration is not available (such nested in Qubes OS)
    * When running nested in a qube, disable memory ballooning for the qube, or performance will be very poor.
    * Include `QEMU_MEMORY_SIZE=6G` to set the guest's memory (`6G`, `8G`, etc.).  The default is 4G to be conservative, but more may be needed depending on the guest OS.
@@ -91,6 +97,10 @@ directory inside the repo as a backing store (see hardlink workflow below).
    * `./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm1-hotp USB_TOKEN=LibremKey PUBKEY_ASC=<path_to_key.asc> run`
 7. Initialize the TPM - select "Reset the TPM" at the TOTP error prompt and follow prompts
 8. Select "Default boot" and follow prompts to sign /boot for the first time and set a default boot option
+
+The installed OS must provide a separate, unencrypted `/boot` partition. A
+single root partition with `/boot` as a directory will trigger Heads' "No
+`/boot` partition found" recovery path and is not a valid test installation.
 
 You can reuse an already created ROOT_DISK_IMG by passing its path at runtime.
 Ex: `./docker_repro.sh make BOARD=qemu-coreboot-fbwhiptail-tpm1 PUBKEY_ASC=~/pub_key_counterpart_of_usb_dongle.asc USB_TOKEN=NitrokeyStorage ROOT_DISK_IMG=~/heads/build/x86/qemu-coreboot-fbwhiptail-tpm1-hotp/root.qcow2 run`
