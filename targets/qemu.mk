@@ -115,7 +115,7 @@ run: $(QEMU_BOOT_ROM) $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE
 	# The optional monitor is a host-side control channel.  Make only its
 	# socket connectable by the host user; no secrets are created here.
 	umask 000; \
-	-qemu-system-x86_64 -drive file="$(ROOT_DISK_IMG)",if=virtio \
+	qemu-system-x86_64 -drive file="$(ROOT_DISK_IMG)",if=virtio \
 		--machine q35,accel=kvm:tcg \
 		-rtc base=utc \
 		-smp 1 \
@@ -134,7 +134,7 @@ run: $(QEMU_BOOT_ROM) $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE
 		$(QEMU_MONITOR_OPT) \
 		-drive file="$(QEMU_USB_FD_IMG)",if=none,id=usb-fd-drive,format=raw \
 		-device usb-storage,bus=usb.0,drive=usb-fd-drive \
-		$(QEMU_USB_TOKEN_DEV) \
+		$(QEMU_USB_TOKEN_DEV) || true
 
 	stty sane
 	@echo
