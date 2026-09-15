@@ -43,6 +43,15 @@ QEMU_MEMORY_SIZE?=4G
 MEMORY_SIZE_FILE=$(build)/$(BOARD)/memory
 $(MEMORY_SIZE_FILE):
 	@echo "$(QEMU_MEMORY_SIZE)" >"$(MEMORY_SIZE_FILE)"
+# Optional QEMU monitor socket for isolated automation.  This keeps GUI key
+# events on the VM control plane instead of guessing whether serial input is
+# connected to a framebuffer dialog or the recovery shell.
+QEMU_MONITOR_SOCKET?=
+ifneq "$(QEMU_MONITOR_SOCKET)" ""
+QEMU_MONITOR_OPT := -monitor unix=$(QEMU_MONITOR_SOCKET),server=on,wait=off
+else
+QEMU_MONITOR_OPT :=
+endif
 USB_FD_IMG=$(build)/$(BOARD)/usb_fd.raw
 # Default USB flash drive size (accepts K/M/G suffixes).
 # Raw sparse: only written blocks consume host disk space, so
@@ -119,6 +128,7 @@ run: $(QEMU_BOOT_ROM) $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE
 		-device tpm-tis,tpmdev=tpm0 \
 		-device qemu-xhci,id=usb \
 		-device usb-tablet \
+		$(QEMU_MONITOR_OPT) \
 		-drive file="$(QEMU_USB_FD_IMG)",if=none,id=usb-fd-drive,format=raw \
 		-device usb-storage,bus=usb.0,drive=usb-fd-drive \
 		$(QEMU_USB_TOKEN_DEV) \
