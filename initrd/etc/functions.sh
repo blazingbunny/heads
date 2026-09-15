@@ -403,6 +403,7 @@ detect_heads_tty() {
 INPUT() {
 	TRACE_FUNC
 	local prompt="$1"
+	local input_status tty_state
 	shift
 	# Log file: plain text - no ANSI codes in debug.log
 	echo "INPUT: $prompt" >>/tmp/debug.log
@@ -415,12 +416,26 @@ INPUT() {
 		# Print prompt with a trailing space so the cursor lands immediately after
 		# the prompt text on the same line  --  no blank line between prompt and input.
 		printf '\033[1;37m%s\033[0m ' "$prompt" >"$HEADS_TTY" 2>/dev/null
+		# A serial automation client can provide a single byte without a newline.
+		# Put the tty in character-at-a-time mode for `read -n 1`; otherwise the
+		# line discipline waits for a newline and a later prompt can consume it.
+		if [[ " $* " == *" -n 1 "* ]]; then
+			tty_state=$(stty -g <"$HEADS_TTY" 2>/dev/null || true)
+			if [ -n "$tty_state" ]; then
+				stty -icanon min 1 time 0 <"$HEADS_TTY" 2>/dev/null || true
+			fi
+		fi
 		# Forward remaining args (read flags + variable name) directly to read.
 		# Note: static analyzers may report the caller's variable as "unassigned"
 		# because assignment through read "$@" indirection is not visible to them.
 		# This is a false positive - the variable is assigned correctly at runtime.
 		read "$@" <"$HEADS_TTY"
+		input_status=$?
+		if [ -n "$tty_state" ]; then
+			stty "$tty_state" <"$HEADS_TTY" 2>/dev/null || true
+		fi
 		echo >"$HEADS_TTY" 2>/dev/null
+		return "$input_status"
 	else
 		# Pre-gui-init context (e.g. init's serial recovery shell launched with
 		# explicit stdin/stdout/stderr redirects to the serial device):
