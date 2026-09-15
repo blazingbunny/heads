@@ -91,7 +91,10 @@ QEMU_USB_TOKEN_DEV := -usb -device canokey,file=$(CANOKEY_DIR)/.canokey-file
 endif
 
 
-run: $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE) $(USB_FD_IMG)
+# QEMU must depend on the exact ROM selected above.  Without this dependency,
+# changing GIT_VERSION_SUFFIX (for example after a commit) makes run construct
+# a new timestamped ROM path and launch QEMU before that file exists.
+run: $(QEMU_BOOT_ROM) $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE) $(USB_FD_IMG)
 	swtpm socket \
 		$(SWTPM_TPMVER) \
 		--tpmstate dir="$(TPMDIR)" \
