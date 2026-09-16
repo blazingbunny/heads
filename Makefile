@@ -409,7 +409,7 @@ endef
 define do-cpio =
 	$(call do,CPIO     ,$1,\
 		( cd "$2"; \
-		find . \
+		find . $(3) \
 		| cpio \
 			--quiet \
 			-H newc \
@@ -943,8 +943,20 @@ endif
 # content is unchanged (efficient rebuild while maintaining consistent output)
 # Use find to get file list - regular files only, evaluated at make time
 HEADS_INITRD_FILES := $(shell find $(pwd)/initrd -type f 2>/dev/null)
+ifeq ($(CONFIG_HOTPKEY),y)
+HEADS_CPIO_FIND_ARGS :=
+else
+# Keep HOTP completely out of no-HOTP images.  The generic GUI/factory-reset
+# scripts retain guarded compatibility branches, but the HOTP sealing helpers
+# themselves must not be callable or present in the final initrd.
+HEADS_CPIO_FIND_ARGS := ! -path './bin/seal-hotpkey.sh' ! -path './bin/unseal-hotp.sh'
+HEADS_INITRD_FILES := $(filter-out \
+	$(pwd)/initrd/bin/seal-hotpkey.sh \
+	$(pwd)/initrd/bin/unseal-hotp.sh, \
+	$(HEADS_INITRD_FILES))
+endif
 $(build)/$(initrd_dir)/heads.cpio: $(HEADS_INITRD_FILES) FORCE
-	$(call do-cpio,$@,$(pwd)/initrd)
+	$(call do-cpio,$@,$(pwd)/initrd,$(HEADS_CPIO_FIND_ARGS))
 
 # --- FINAL INITRD PACKAGING ---
 

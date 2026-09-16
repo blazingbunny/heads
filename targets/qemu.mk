@@ -101,10 +101,15 @@ else ifeq "$(USB_TOKEN)" "LibremKey"
 QEMU_USB_TOKEN_DEV := -device usb-host,vendorid=12653,productid=19531
 else ifneq "$(USB_TOKEN)" ""
 QEMU_USB_TOKEN_DEV := -device "usb-host,$(USB_TOKEN)"
-# If no USB token is specified, support canokey by default
-else
-# official instruction -usb -device canokey,file=$HOME/.canokey-file -device canokey
+# If no USB token is specified, attach a disposable Canokey only for HOTP
+# boards; no-HOTP boards must not acquire an OTP dependency implicitly.
+else ifeq "$(CONFIG_HOTPKEY)" "y"
+# HOTP-enabled boards get a disposable virtual Canokey by default.  A
+# no-HOTP board must not depend on, or silently attach, an OTP token after
+# setup; pass USB_TOKEN explicitly only for a dedicated token test.
 QEMU_USB_TOKEN_DEV := -usb -device canokey,file=$(CANOKEY_DIR)/.canokey-file
+else
+QEMU_USB_TOKEN_DEV :=
 endif
 
 

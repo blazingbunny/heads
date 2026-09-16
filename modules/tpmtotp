@@ -16,9 +16,12 @@ tpmtotp_target := \
 
 tpmtotp_output := \
 	totp \
-	hotp \
 	qrenc \
 	util/tpm \
+
+ifeq ($(CONFIG_HOTPKEY),y)
+tpmtotp_output += hotp
+endif
 
 tpmtotp_libraries := \
 	libtpm/libtpm.so \
