@@ -33,6 +33,7 @@ Quick reference: read the relevant doc when working on a topic.
 | `hotp.md` | HOTP-based remote attestation of firmware state |
 | `keys.md` | Key management for firmware signing |
 | `security-model.md` | TPM measured boot, trust chain, flash write protection |
+| `t430-totp-recovery.md` | Preserve-first TOTP validation and authorized replacement flow for T430 |
 | `TPM_GPIO_Reset_Approaches.md` | Eight approaches for resetting TPM via GPIO |
 | `TPM_GPIO_Reset_Vulnerability.md` | TPM GPIO reset vulnerability analysis |
 | `tpm.md` | TPM 1.2 and 2.0 operation details |
