@@ -55,7 +55,16 @@ if [ "$update" = "y" ]; then
 		TRACE_FUNC
 		DEBUG "update=y: Updating kexec hashes in staging dir $stagedir"
 		cd /boot
-		find ./ -type f ! -path './kexec*' -print0 | xargs -0 sha256sum >"$stagedir/kexec_hashes.txt" ||
+		# grubenv is mutable GRUB runtime state for the traditional GRUB
+		# layout.  Heads parses and boots the signed entry itself there, so an
+		# OS update to saved GRUB state must not invalidate /boot.  BLS parsing
+		# may consume grubenv's kernelopts, so keep it signed in BLS layouts.
+		grubenv_exclude=()
+		if [ ! -d ./loader/entries ] && [ ! -d ./boot/loader/entries ]; then
+			grubenv_exclude=( ! -path './grub/grubenv' )
+		fi
+		find ./ -type f ! -path './kexec*' "${grubenv_exclude[@]}" -print0 |
+			xargs -0 sha256sum >"$stagedir/kexec_hashes.txt" ||
 			hash_pipeline_exit=$?
 		#also save the file & directory structure to detect added files
 		print_tree >"$stagedir/kexec_tree.txt"

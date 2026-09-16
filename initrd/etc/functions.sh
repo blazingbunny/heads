@@ -2465,7 +2465,14 @@ update_checksums() {
 # Print the file and directory structure of /boot to caller's stdout
 print_tree() {
 	TRACE_FUNC
-	find ./ ! -path './kexec*' -print0 | sort -z
+	# grubenv is mutable GRUB runtime state for the traditional GRUB layout,
+	# where Heads parses and boots the signed entry itself.  BLS parsing may
+	# consume grubenv's kernelopts, so keep it integrity-protected there.
+	local grubenv_exclude=()
+	if [ ! -d ./loader/entries ] && [ ! -d ./boot/loader/entries ]; then
+		grubenv_exclude=( ! -path './grub/grubenv' )
+	fi
+	find ./ ! -path './kexec*' "${grubenv_exclude[@]}" -print0 | sort -z
 }
 
 # Escape zero-delimited standard input to safely display it to the user in e.g.
