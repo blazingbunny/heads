@@ -29,9 +29,11 @@ self-contained for QEMU testing; host-focused build instructions
 divergence—use the Docker wrappers for the tested workflow.
 
 If you do not specify `USB_TOKEN` when running QEMU targets, the
-container will use the included `canokey-qemu` virtual token by
-default. To forward a hardware token from the host, set `USB_TOKEN` or
-pass `hostbus`/`hostport`/`vendorid,productid` to the make invocation.
+container will use the included `canokey-qemu` virtual token by default only
+for HOTP-enabled boards. To test a no-HOTP board with a disposable virtual
+card, pass `CANOKEY_FILE=<path-inside-heads-clone>` explicitly. To forward a
+hardware token from the host, set `USB_TOKEN` or pass
+`hostbus`/`hostport`/`vendorid,productid` to the make invocation.
 
 If you plan to manage disk images on the host (outside the container),
 install `qemu-utils` for `qemu-img`.  Mounting uses `losetup` (from
@@ -301,6 +303,18 @@ Troubleshooting
   - `groups | grep -q kvm` — confirm your user is in a group with access to KVM (or run with appropriate privileges).
   - `source docker/common.sh && build_docker_opts` — inspect the options the wrapper will use without launching Docker.
 - GUI issues: prefer installing `xauth` on the host so the wrappers can create a safe programmatic Xauthority file. As a last resort you can run `xhost +SI:localuser:root` (less secure).
+- Headless validation: set `QEMU_DISPLAY_OPT=-display none` and provide
+  `QEMU_SERIAL_SOCKET`/`QEMU_MONITOR_SOCKET` when running from a host without a
+  usable GTK/X11 session. The monitor channel is suitable for isolated key
+  events and screenshots; do not attach the Docker PTY to a running QEMU.
+- GPG key changes: `inject_gpg` validates the source-ROM and public-key hashes
+  on every invocation, so changing `PUBKEY_ASC` reliably regenerates the
+  injected ROM even when the file timestamps are unchanged.
+- No-HOTP signing-card gate test: pass
+  `CANOKEY_FILE=qemu_img/<disposable-state>` to attach a virtual Canokey state
+  file explicitly. This is a QEMU-only test hook; it does not enable HOTP or
+  attach a token in the final runtime image. Use separate disposable files for
+  unprovisioned and provisioned-card cases.
 - USB/GPG cleanup: if the cleanup is refusing to run due to non-interactive sudo, run the kill steps manually or set `HEADS_DISABLE_USB=1` to skip automatic cleanup.
 
 Notes

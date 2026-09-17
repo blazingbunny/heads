@@ -1007,9 +1007,13 @@ modules.clean:
 # since we can't reflash the firmware in qemu to update the keychain.  Instead,
 # inject the public key ahead of time.  Specify the location of the key with
 # PUBKEY_ASC.
+.PHONY: inject_gpg
 inject_gpg: $(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)
 
-$(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPUT_FILE) $(PUBKEY_ASC)
+# Always run the metadata check below: the key path is a make prerequisite,
+# but its contents can change without changing its mtime.  The recipe remains
+# idempotent and skips injection when both content hashes are unchanged.
+$(board_build)/$(CB_OUTPUT_BASENAME)-gpg-injected.rom: $(board_build)/$(CB_OUTPUT_FILE) $(PUBKEY_ASC) FORCE
 	@set -e; \
 	src="$(board_build)/$(CB_OUTPUT_FILE)"; \
 	tgt="$(board_build)/$(CB_OUTPUT_FILE_GPG_INJ)"; \

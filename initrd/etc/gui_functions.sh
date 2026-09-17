@@ -546,6 +546,53 @@ report_integrity_measurements() {
 	fi
 }
 
+# Verify the signing-card precondition for a destructive TPM reset without
+# prompting for a PIN or changing TPM/disk state.  A successful
+# gpg --card-status only proves that the CCID transport is reachable; it does
+# not prove that the card is provisioned or that its signing key is trusted by
+# this ROM.  The reset flow must establish those facts before forceclear.
+#
+# On success, GPG_SIGNING_KEY_STATE is "ready" and
+# GPG_SIGNING_KEY_FPR contains the private card key's public fingerprint for
+# the signing script.  Failure states are deliberately generic and contain no
+# key material, PINs, or card output.
+verify_gpg_signing_key_for_reset() {
+	TRACE_FUNC
+	GPG_SIGNING_KEY_STATE="card-unavailable"
+	GPG_SIGNING_KEY_FPR=""
+	gpg_output=""
+
+	if ! wait_for_gpg_card 2>/dev/null; then
+		DEBUG "verify_gpg_signing_key_for_reset: card-status unavailable"
+		return 1
+	fi
+
+	local card_sig_fpr rom_fprs
+	card_sig_fpr=$(echo "$gpg_output" |
+		awk -F: '/Signature key/ {gsub(/[[:space:]]/,"",$2); print $2; exit}')
+	if [ -z "$card_sig_fpr" ] || [ "$card_sig_fpr" = "[none]" ]; then
+		GPG_SIGNING_KEY_STATE="card-unprovisioned"
+		DEBUG "verify_gpg_signing_key_for_reset: card has no signature key"
+		return 1
+	fi
+	card_sig_fpr=$(echo "$card_sig_fpr" | tr '[:lower:]' '[:upper:]')
+
+	rom_fprs=$(gpg --with-colons --list-keys 2>/dev/null |
+		awk -F: '/^fpr/ {print $10}' |
+		tr '[:lower:]' '[:upper:]')
+	if ! echo "$rom_fprs" | awk -v expected="$card_sig_fpr" '$0 == expected {found=1} END {exit !found}'; then
+		GPG_SIGNING_KEY_STATE="card-key-untrusted"
+		DEBUG "verify_gpg_signing_key_for_reset: card signing key is not ROM-trusted"
+		return 1
+	fi
+
+	GPG_SIGNING_KEY_STATE="ready"
+	GPG_SIGNING_KEY_FPR="$card_sig_fpr"
+	export GPG_SIGNING_KEY_FPR
+	STATUS_OK "ROM-trusted signing key verified on $DONGLE_BRAND"
+	return 0
+}
+
 investigate_integrity_discrepancies() {
 	TRACE_FUNC
 	local changed_files changed_count details sig_details sig_status

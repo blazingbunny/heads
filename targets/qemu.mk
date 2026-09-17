@@ -43,6 +43,9 @@ QEMU_MEMORY_SIZE?=4G
 MEMORY_SIZE_FILE=$(build)/$(BOARD)/memory
 $(MEMORY_SIZE_FILE):
 	@echo "$(QEMU_MEMORY_SIZE)" >"$(MEMORY_SIZE_FILE)"
+# Set QEMU_DISPLAY_OPT=-display none for headless validation on hosts without
+# a usable GTK/X11 session.  Leave it empty to retain the normal framebuffer.
+QEMU_DISPLAY_OPT?=
 # Optional QEMU monitor socket for isolated automation.  This keeps GUI key
 # events on the VM control plane instead of guessing whether serial input is
 # connected to a framebuffer dialog or the recovery shell.
@@ -91,6 +94,9 @@ endif
 # - LibremKey - forwards a Librem Key by VID:PID
 # - <other> - Provide the QEMU usb-host parameters, such as
 #   'hostbus=<#>,hostport=<#>' or 'vendorid=<#>,productid=<#>'
+# For no-HOTP integration tests, CANOKEY_FILE explicitly attaches a disposable
+# canokey-qemu state file without making the final image depend on HOTP.  An
+# explicit USB_TOKEN takes precedence so host-token tests remain unchanged.
 ifeq "$(USB_TOKEN)" "NitrokeyPro"
 QEMU_USB_TOKEN_DEV := -device usb-host,vendorid=8352,productid=16648
 else ifeq "$(USB_TOKEN)" "NitrokeyStorage"
@@ -101,6 +107,11 @@ else ifeq "$(USB_TOKEN)" "LibremKey"
 QEMU_USB_TOKEN_DEV := -device usb-host,vendorid=12653,productid=19531
 else ifneq "$(USB_TOKEN)" ""
 QEMU_USB_TOKEN_DEV := -device "usb-host,$(USB_TOKEN)"
+# Explicit virtual-card state is a test-only opt-in.  This is intentionally
+# available to no-HOTP boards so the reset/signing gate can be integration
+# tested with a disposable provisioned or unprovisioned card.
+else ifneq "$(CANOKEY_FILE)" ""
+QEMU_USB_TOKEN_DEV := -usb -device canokey,file=$(CANOKEY_FILE)
 # If no USB token is specified, attach a disposable Canokey only for HOTP
 # boards; no-HOTP boards must not acquire an OTP dependency implicitly.
 else ifeq "$(CONFIG_HOTPKEY)" "y"
@@ -133,6 +144,7 @@ run: $(QEMU_BOOT_ROM) $(TPMDIR)/.manufacture $(ROOT_DISK_IMG) $(MEMORY_SIZE_FILE
 		-rtc base=utc \
 		-smp 1 \
 		-vga std \
+		$(QEMU_DISPLAY_OPT) \
 		-m "$$(cat "$(MEMORY_SIZE_FILE)")" \
 		$(QEMU_SERIAL_OPT) \
 		--bios "$(QEMU_BOOT_ROM)" \

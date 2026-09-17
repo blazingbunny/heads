@@ -157,9 +157,15 @@ for tries in 1 2 3; do
 
 	# Public keys are not sufficient for signing. After cache_gpg_signing_pin,
 	# force discovery of a usable secret key identity and pass it explicitly
-	# to gpg, instead of relying on implicit default-key selection.
+	# to gpg, instead of relying on implicit default-key selection.  The TPM
+	# reset flow exports the card fingerprint it preflighted against the ROM;
+	# preserve that choice instead of silently selecting an unrelated local
+	# secret-key stub.
 	card_status_output=$(gpg --card-status 2>/dev/null || true)
-	SIGNING_KEY_ID=$(gpg --with-colons --list-secret-keys 2>/dev/null | awk -F: '$1=="sec"||$1=="ssb" {print $5; exit}')
+	SIGNING_KEY_ID="${GPG_SIGNING_KEY_FPR:-}"
+	if [ -z "$SIGNING_KEY_ID" ]; then
+		SIGNING_KEY_ID=$(gpg --with-colons --list-secret-keys 2>/dev/null | awk -F: '$1=="sec"||$1=="ssb" {print $5; exit}')
+	fi
 	if [ -z "$SIGNING_KEY_ID" ]; then
 		CARD_SIGNING_KEY_ID=$(echo "$card_status_output" | awk -F: '/Signature key/ {gsub(/[[:space:]]/,"",$2); print $2; exit}')
 		if [ -n "$CARD_SIGNING_KEY_ID" ]; then

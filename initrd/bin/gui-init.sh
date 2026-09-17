@@ -789,8 +789,43 @@ reset_tpm() {
 		if (whiptail_warning --title 'Reset the TPM' \
 			--yesno "This will clear the TPM and replace its Owner passphrase with a new one!\n\nDo you want to proceed?" 0 80); then
 
+			# Do this before collecting a new owner passphrase or touching TPM
+			# state.  Card transport success alone is insufficient: the card
+			# must expose a signing key trusted by this ROM so /boot can be
+			# signed after forceclear.
+			if ! verify_gpg_signing_key_for_reset; then
+				case "$GPG_SIGNING_KEY_STATE" in
+				card-unavailable)
+					_reset_key_msg="No $DONGLE_BRAND signing card was accessible. Insert the card and retry."
+					;;
+				card-unprovisioned)
+					_reset_key_msg="$DONGLE_BRAND is connected but has no signature key. Provision the card before resetting the TPM."
+					;;
+				card-key-untrusted)
+					_reset_key_msg="The signing key on $DONGLE_BRAND is not trusted by this ROM. Use the card matching this firmware or reflash firmware with the intended public key before resetting the TPM."
+					;;
+				*)
+					_reset_key_msg="A ROM-trusted signing key could not be verified. Correct the signing-card setup before resetting the TPM."
+					;;
+				esac
+				whiptail_error --title 'Signing Key Required Before TPM Reset' \
+					--msgbox "${_reset_key_msg}\n\nNo TPM state was changed." 0 80
+				unset _reset_key_msg
+				return 1
+			fi
+
 			if ! prompt_new_owner_password; then
 				INPUT "Press Enter to return to the menu..."
+				return 1
+			fi
+
+			# Require a separate confirmation immediately before forceclear.  The
+			# first warning authorizes entering a replacement owner passphrase;
+			# this final gate authorizes the destructive TPM reset itself.
+			if ! whiptail_warning --title 'Final TPM Reset Confirmation' \
+				--yesno "Final confirmation: forceclear will destroy the existing sealed TOTP, TPM rollback state, and any TPM-bound secrets. Proceed with TPM reset/re-ownership?" 0 80; then
+				rm -f /tmp/secret/tpm_owner_passphrase
+				unset tpm_owner_passphrase
 				return 1
 			fi
 
@@ -847,33 +882,19 @@ reset_tpm() {
 			else
 				WARN "GPG card was not accessible during /boot signing preparation; retrying through key checks"
 			fi
-			while true; do
-				GPG_KEY_COUNT=$(gpg -K 2>/dev/null | wc -l)
-				if [ "$GPG_KEY_COUNT" -eq 0 ]; then
-					prompt_missing_gpg_key_action || return 1
-					wait_for_gpg_card || true
-				else
-					if ! update_checksums; then
-						whiptail_error --title 'ERROR' \
-							--msgbox "Failed to update checksums / sign default config" 0 80
-						return 1
-					fi
-					break
-				fi
-			done
-			mount -o ro,remount /boot
-
-			# Reset completed and reseal prerequisites were rebuilt.
-			# Clear stale preflight marker before generating fresh TOTP/HOTP.
-			clear_tpm_reset_required
-
-			if ! generate_totp_hotp "$tpm_owner_passphrase"; then
+			if ! update_checksums; then
+				whiptail_error --title 'ERROR' \
+					--msgbox "Failed to update checksums / sign default config" 0 80
 				return 1
 			fi
+			mount -o ro,remount /boot
 
-			if [ -s /boot/kexec_key_devices.txt ] || [ -s /boot/kexec_key_lvm.txt ]; then
-				reseal_tpm_disk_decryption_key || prompt_missing_gpg_key_action
-			fi
+			# TPM1.2 forceclear/re-ownership invalidates the live PCR context for
+			# the remainder of this boot.  Do not seal a replacement TOTP against
+			# that transient state: reboot into the freshly measured firmware first,
+			# then let the normal Generate TOTP action seal against live PCRs.
+			clear_tpm_reset_required
+			INFO "TPM reset complete; rebooting before replacement TOTP sealing"
 			/bin/reboot.sh
 		fi
 	fi
