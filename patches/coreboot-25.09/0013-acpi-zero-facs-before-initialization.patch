@@ -1,0 +1,32 @@
+From 6c7f4b75bcb1a5c7a6b9d0f9c8c0b3d7c7e8a9f Mon Sep 17 00:00:00 2001
+From: Adrian <adrian@blazingbunny.dev>
+Date: Fri, 18 Sep 2026 23:30:00 +0800
+Subject: [PATCH] acpi: zero the complete FACS before initialization
+
+The FACS contains reserved fields and OSPM flags that must start at zero.
+acpi_create_facs() previously initialized only the active fields, allowing
+stale memory contents to leak into the live ACPI table.  This is especially
+important for S3 resume, where the operating system uses the FACS waking
+vector.
+
+Zero the complete structure before populating its defined fields.
+
+Signed-off-by: Adrian <adrian@blazingbunny.dev>
+---
+ src/acpi/acpi.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/acpi/acpi.c b/src/acpi/acpi.c
+index 07e84f6d39..674a83fde8 100644
+--- a/src/acpi/acpi.c
++++ b/src/acpi/acpi.c
+@@ -933,6 +933,7 @@ static void acpi_create_facs(void *header)
+ {
+ 	acpi_facs_t *facs = header;
+ 
++	memset(facs, 0, sizeof(*facs));
+ 	memcpy(facs->signature, "FACS", 4);
+ 	facs->length = sizeof(acpi_facs_t);
+ 	facs->hardware_signature = 0;
+-- 
+2.39.5
